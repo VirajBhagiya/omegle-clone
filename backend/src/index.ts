@@ -1,16 +1,24 @@
 import { Socket } from "socket.io";
 import http from "http";
 
-const expess = require('express');
-const { Server } = require('socket.io');
+import expess from 'express';
+import { Server } from 'socket.io';
+import { UserManager } from "./managers/UserManager";
 
 const app = expess();
 const server = http.createServer(http);
 
-const io = new Server(server);
+const io = new Server(server, {
+    cors: {
+        origin: "*"
+    }
+});
+
+const userManager = new UserManager();
 
 io.on('connection', (socket: Socket) => {
-    console.log('User Connected!');
+    console.log('User Connected!'); 
+    userManager.addUser("randomName", socket)
 });
 
 server.listen(3000, () => {
