@@ -23,23 +23,31 @@ export class RoomManager {
         user1.socket.emit("send-offer", {
             roomId
         })
+
+        user2.socket.emit("send-offer", {
+            roomId
+        })
     }
 
-    onOffer(roomId: string, sdp: string){
-        const user2 = this.rooms.get(roomId)?.user2;
-        console.log("On offer!");
-        console.log("User2 is " + user2);
-        user2?.socket.emit("offer", {
+    onOffer(roomId: string, sdp: string, senderSocketId: string){
+        const room = this.rooms.get(roomId);
+        if(!room){
+            return;
+        }
+        const receivingUser = room.user1.socket.id === senderSocketId ? room.user2: room.user1;
+        receivingUser?.socket.emit("offer", {
             sdp,
             roomId
         })
     }
 
-    onAnswer(roomId: string, sdp: string){
-        const user1 = this.rooms.get(roomId)?.user1;
-        console.log("On answer!");
-        console.log("User1 is " + user1);
-        user1?.socket.emit("answer", {
+    onAnswer(roomId: string, sdp: string, senderSocketId: string){
+        const room = this.rooms.get(roomId);
+        if(!room){
+            return;
+        }
+        const receivingUser = room.user1.socket.id === senderSocketId ? room.user2: room.user1;
+        receivingUser?.socket.emit("answer", {
             sdp,
             roomId
         })
@@ -51,10 +59,8 @@ export class RoomManager {
             return;
         }
         const receivingUser = room.user1.socket.id === senderSocketId ? room.user2: room.user1;
-        receivingUser.socket.send("add-ice-candidate", ({candidate, type})) 
-
+        receivingUser.socket.emit("add-ice-candidate", ({candidate, type})) 
     }
-
     
     generate(){
         return GLOBAL_ROOM_ID++;
