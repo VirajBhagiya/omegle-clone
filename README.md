@@ -25,20 +25,19 @@ npm install
 ```
 
 3. Run Locally
--- Start backend server:
+- Start backend server:
 ```bash
-Copy code
 npm start
 ```
 
---Start frontend server:
+- Start frontend server:
 ```bash
 cd frontend
-npm start
+npm run dev
 ```
 
 4. Access the App
-Open your browser and go to `http://localhost:3000` 🌐
+Open your browser and go to `http://localhost:5173` 🌐
 
 ## 🚧 Contributions
 Feel free to dive in and make contributions! 🤝
