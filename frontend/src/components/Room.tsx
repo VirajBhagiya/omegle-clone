@@ -26,6 +26,28 @@ export const Room = ({
 
     useEffect(() => {
         const socket = io(URL);
+
+
+        const initializePeerConnection = (type: "sender" | "receiver") => {
+            const pc = new RTCPeerConnection();
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit("add-ice-candidate", { candidate: event.candidate, type });
+                }
+            };
+
+            pc.ontrack = (event) => {
+                if (remoteVideoRef.current) {
+                    const stream = remoteVideoRef.current.srcObject as MediaStream || new MediaStream();
+                    event.streams[0].getTracks().forEach(track => stream.addTrack(track));
+                    remoteVideoRef.current.srcObject = stream;
+                }
+            };
+
+            return pc;
+        };
+
+
         socket.on('send-offer', async ({roomId}) => {
             console.log("sending offer");
             setLobby(false);
@@ -70,7 +92,11 @@ export const Room = ({
             console.log("received offer");
             setLobby(false);
             const pc = new RTCPeerConnection();
-            pc.setRemoteDescription(remoteSdp)
+            try {
+                pc.setRemoteDescription(remoteSdp);
+            } catch (error) {
+                console.error("Failed to set remote description", error)
+            }
             const sdp = await pc.createAnswer();
             //@ts-ignore
             pc.setLocalDescription(sdp)
@@ -83,8 +109,11 @@ export const Room = ({
             // trickle ice 
             setReceivingPc(pc);
             window.pcr = pc;
-            pc.ontrack = (e) => {
-                alert("ontrack");
+            pc.ontrack = (event) => {
+                // alert("ontrack");
+                event.streams[0].getTracks().forEach((track) => {
+                    remoteMediaStream?.addTrack(track);
+                });
                 // console.error("inside ontrack");
                 // const {track, type} = e;
                 // if (type == 'audio') {
@@ -98,7 +127,7 @@ export const Room = ({
                 // }
                 // //@ts-ignore
                 // remoteVideoRef.current.play();
-            }
+            };
 
             pc.onicecandidate = async (e) => {
                 if (!e.candidate) {
