@@ -19,7 +19,6 @@ cd omegle-clone
 
 2. Install Dependencies
 ```bash
-npm install
 cd frontend
 npm install
 ```
@@ -27,6 +26,7 @@ npm install
 3. Run Locally
 - Start backend server:
 ```bash
+cd backend
 npm start
 ```
 
