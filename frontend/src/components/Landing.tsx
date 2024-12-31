@@ -34,33 +34,72 @@ export const Landing = () => {
             getCam();
         }
 
-        return () => {
-            if (localAudioTrack || localVideoTrack) {
-                console.log("Cleaning up media tracks...");
-                localAudioTrack?.stop();
-                localVideoTrack?.stop();
-            }
-        };
-    }, []);
+    }, [videoRef]);
     
     if(!joined){
         return (
-            <div style={{ textAlign: "center", marginTop: "20px" }}>
-                {!localVideoTrack && <p>Camera preview unavailable. Please grant camera access.</p>}
-                <video autoPlay ref={videoRef} style={{ width: "300px", borderRadius: "10px" }} />
-                <input
-                    type="text"
-                    placeholder="Enter your name"
-                    onChange={(e) => setName(e.target.value)}
-                    style={{ display: "block", margin: "10px auto", padding: "5px" }}
-                />
-                <button 
-                    onClick={() => setJoined(true)} 
-                    disabled={!name.trim()}
-                    style={{ padding: "10px 20px", cursor: name.trim() ? "pointer" : "not-allowed" }}
-                >
-                    Join
-                </button>
+            <div className="min-h-screen bg-space-dark relative overflow-hidden flex flex-col items-center justify-center">
+                {/* Animated background elements */}
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(139,61,255,0.1),rgba(0,0,0,0))]" />
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-neon-blue to-transparent animate-pulse" />
+                <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-neon-purple to-transparent animate-pulse" />
+                
+                {/* Main content container */}
+                <div className="relative z-10 backdrop-blur-sm bg-space-light/30 p-8 rounded-2xl border border-neon-blue/20 shadow-2xl animate-float">
+                    <h1 className="text-4xl font-bold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink">
+                        Neural Link
+                    </h1>
+                    
+                    {!localVideoTrack && (
+                        <div className="mb-6 text-neon-pink flex items-center space-x-2 animate-pulse">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <span>Neural interface offline. Enable visual sensors.</span>
+                        </div>
+                    )}
+
+                    <div className="relative group mb-8">
+                        <video
+                            autoPlay
+                            ref={videoRef}
+                            className="w-96 h-72 rounded-xl border border-neon-blue/30 shadow-lg transform transition-transform group-hover:scale-[1.02]"
+                            style={{
+                                boxShadow: '0 0 20px rgba(0, 243, 255, 0.2)',
+                            }}
+                        />
+                        <div className="absolute inset-0 rounded-xl bg-gradient-to-t from-space-dark/80 via-transparent to-transparent" />
+                    </div>
+
+                    <div className="space-y-6">
+                        <div className="relative">
+                            <input
+                                type="text"
+                                placeholder="Enter neural signature"
+                                onChange={(e) => setName(e.target.value)}
+                                className="w-full px-6 py-4 bg-space-accent/50 rounded-lg border border-neon-blue/30 text-neon-blue placeholder-neon-blue/50 focus:outline-none focus:border-neon-purple/50 transition-all"
+                                style={{
+                                    caretColor: '#00f3ff',
+                                }}
+                            />
+                            <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink transform scale-x-0 transition-transform duration-300 origin-left peer-focus:scale-x-100" />
+                        </div>
+
+                        <button
+                            onClick={() => setJoined(true)}
+                            disabled={!name.trim()}
+                            className={`
+                                w-full px-8 py-4 rounded-lg font-bold text-lg
+                                transition-all duration-300 transform hover:scale-105
+                                ${name.trim() 
+                                    ? 'bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink text-white shadow-lg hover:shadow-neon-purple/50' 
+                                    : 'bg-space-accent text-gray-500 cursor-not-allowed'}
+                            `}
+                        >
+                            Initialize Connection
+                        </button>
+                    </div>
+                </div>
             </div>
         );
     }
