@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from "react"
+import { Socket, io } from "socket.io-client";
 import { Room } from "./Room";
+
+const socket = io("http://localhost:3000", {
+    reconnection: false,  // Prevent automatic reconnection
+    transports: ['websocket']  // Use WebSocket transport only
+});
 
 export const Landing = () => {
     const [name, setName] = useState("");
@@ -35,7 +41,24 @@ export const Landing = () => {
         }
 
     }, [videoRef]);
-    
+
+    const handleJoinRoom = () => {
+        if (!name.trim()) return;
+        console.log("Emitting join-room event with name:", name);
+        socket.emit('join-room', name);
+        setJoined(true);
+    };
+
+    useEffect(() => {
+        socket.on('queue-joined', () => {
+            console.log('Joined queue, waiting for match...');
+        });
+
+        return () => {
+            socket.off('queue-joined');
+        };
+    }, []);
+
     if(!joined){
         return (
             <div className="min-h-screen bg-space-dark relative overflow-hidden flex flex-col items-center justify-center">
@@ -86,7 +109,7 @@ export const Landing = () => {
                         </div>
 
                         <button
-                            onClick={() => setJoined(true)}
+                            onClick={handleJoinRoom}
                             disabled={!name.trim()}
                             className={`
                                 w-full px-8 py-4 rounded-lg font-bold text-lg
@@ -104,6 +127,6 @@ export const Landing = () => {
         );
     }
 
-    return <Room name={name} localAudioTrack={localAudioTrack} localVideoTrack={localVideoTrack} />;
+    return <Room name={name} localAudioTrack={localAudioTrack} localVideoTrack={localVideoTrack} socket={socket} />;
 
 };

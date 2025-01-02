@@ -13,6 +13,7 @@ interface RoomProps {
     name: string;
     localAudioTrack: MediaStreamTrack | null;
     localVideoTrack: MediaStreamTrack | null;
+    socket: Socket
 }
 
 export const Room = ({ name, localAudioTrack, localVideoTrack}: RoomProps) => {
