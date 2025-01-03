@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { Socket, io } from "socket.io-client";
+import { io } from "socket.io-client";
 import { Room } from "./Room";
 
 const socket = io("http://localhost:3000", {

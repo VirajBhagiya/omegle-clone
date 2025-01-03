@@ -1,13 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Socket, io } from "socket.io-client";
-
-const URL = "http://localhost:3000";
-
-declare global {
-    interface Window {
-        pcr: RTCPeerConnection;
-    }
-}
+import { Socket } from "socket.io-client";
 
 interface RoomProps {
     name: string;
@@ -16,224 +8,175 @@ interface RoomProps {
     socket: Socket
 }
 
-export const Room = ({ name, localAudioTrack, localVideoTrack}: RoomProps) => {
+export const Room = ({ name, localAudioTrack, localVideoTrack, socket }: RoomProps) => {
     const [lobby, setLobby] = useState(true);
-    const [, setSocket] = useState<null | Socket>(null);
-    const [, setSendingPc] = useState<null | RTCPeerConnection>(null);
-    const [, setReceivingPc] = useState<null | RTCPeerConnection>(null);
+    const [sendingPc, setSendingPc] = useState<RTCPeerConnection | null>(null);
+    const [receivingPc, setReceivingPc] = useState<RTCPeerConnection | null>(null);
     const [, setRemoteVideoTrack] = useState<MediaStreamTrack | null>(null);
     const [, setRemoteAudioTrack] = useState<MediaStreamTrack | null>(null);
-    const [remoteMediaStream, setRemoteMediaStream] = useState<MediaStream | null>(null);
+    const [remoteMediaStream] = useState<MediaStream>(new MediaStream());
+    const [connectionQuality, setConnectionQuality] = useState(100);
 
-    const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
-    const localVideoRef = useRef<HTMLVideoElement | null>(null);
-    
+    const remoteVideoRef = useRef<HTMLVideoElement>(null);
+    const localVideoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
-        const socket = io(URL);
+        if (!socket) return;
 
-        socket.on('send-offer', async ({roomId}) => {
-            console.log("sending offer");
+        socket.on('start-call', async ({ roomId, isInitiator }) => {
             setLobby(false);
-            const pc = new RTCPeerConnection();
+            if (isInitiator) {
+                const pc = new RTCPeerConnection();
+                setSendingPc(pc);
 
-            setSendingPc(pc);
-            if (localVideoTrack) {
-                console.error("added track");
-                console.log(localVideoTrack)
-                pc.addTrack(localVideoTrack)
-            }
-            if (localAudioTrack) {
-                console.error("added track");
-                console.log(localAudioTrack)
-                pc.addTrack(localAudioTrack)
-            }
+                if (localVideoTrack) pc.addTrack(localVideoTrack);
+                if (localAudioTrack) pc.addTrack(localAudioTrack);
 
-            pc.onicecandidate = async (e) => {
-                console.log("receiving ice candidate locally");
-                if (e.candidate) {
-                   socket.emit("add-ice-candidate", {
-                    candidate: e.candidate,
-                    type: "sender",
-                    roomId
-                   })
-                }
-            }
+                pc.onicecandidate = ({ candidate }) => {
+                    if (candidate) {
+                        socket.emit("add-ice-candidate", {
+                            candidate,
+                            type: "sender",
+                            roomId
+                        });
+                    }
+                };
 
-            pc.onnegotiationneeded = async () => {
-                console.log("on negotiation needed, sending offer");
-                const sdp = await pc.createOffer();
-                pc.setLocalDescription(sdp)
-                socket.emit("offer", {
-                    sdp,
-                    roomId
-                })
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                socket.emit("offer", { sdp: offer, roomId });
             }
         });
 
-        socket.on("offer", async ({roomId, sdp: remoteSdp}) => {
-            console.log("received offer");
-            setLobby(false);
+        socket.on("offer", async ({ roomId, sdp }) => {
             const pc = new RTCPeerConnection();
-            try {
-                pc.setRemoteDescription(remoteSdp);
-            } catch (error) {
-                console.error("Failed to set remote description", error)
-            }
-            const sdp = await pc.createAnswer();
-            pc.setLocalDescription(sdp)
-            const stream = new MediaStream();
-            if (remoteVideoRef.current) {
-                remoteVideoRef.current.srcObject = stream;
-            }
-
-            setRemoteMediaStream(stream);
             setReceivingPc(pc);
             
-            window.pcr = pc;
             pc.ontrack = (event) => {
-                event.streams[0].getTracks().forEach((track) => {
-                    remoteMediaStream?.addTrack(track);
-                });
+                const [track] = event.streams[0].getTracks();
+                if (track.kind === "video") {
+                    remoteMediaStream.addTrack(track);
+                    setRemoteVideoTrack(track);
+                } else {
+                    remoteMediaStream.addTrack(track);
+                    setRemoteAudioTrack(track);
+                }
             };
 
-            pc.onicecandidate = async (e) => {
-                if (!e.candidate) {
-                    return;
+            pc.onicecandidate = ({ candidate }) => {
+                if (candidate) {
+                    socket.emit("add-ice-candidate", {
+                        candidate,
+                        type: "receiver",
+                        roomId
+                    });
                 }
-                console.log("on ice candidate on receiving side");
-                if (e.candidate) {
-                   socket.emit("add-ice-candidate", {
-                    candidate: e.candidate,
-                    type: "receiver",
-                    roomId
-                   })
-                }
-            }
+            };
 
-            socket.emit("answer", {
-                roomId,
-                sdp: sdp
-            });
-            setTimeout(() => {
-                const track1 = pc.getTransceivers()[0].receiver.track
-                const track2 = pc.getTransceivers()[1].receiver.track
-                console.log(track1);
-                if (track1.kind === "video") {
-                    setRemoteAudioTrack(track2)
-                    setRemoteVideoTrack(track1)
-                } else {
-                    setRemoteAudioTrack(track1)
-                    setRemoteVideoTrack(track2)
-                }
-                // @ts-expect-error: done
-                remoteVideoRef.current.srcObject.addTrack(track1)
-                // @ts-expect-error: done
-                remoteVideoRef.current.srcObject.addTrack(track2)
-                // @ts-expect-error: done
-                remoteVideoRef.current.play();
-            }, 3000)
+            await pc.setRemoteDescription(sdp);
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            socket.emit("answer", { sdp: answer, roomId });
         });
 
-        socket.on("answer", ({sdp: remoteSdp}) => {
-            setLobby(false);
-            setSendingPc(pc => {
-                pc?.setRemoteDescription(remoteSdp)
-                return pc;
-            });
-            console.log("loop closed");
-        })
+        socket.on("add-ice-candidate", async ({ candidate, type }) => {
+            const pc = type === "sender" ? receivingPc : sendingPc;
+            if (pc) await pc.addIceCandidate(candidate);
+        });
 
-        socket.on("lobby", () => {
-            setLobby(true);
-        })
-
-        socket.on("add-ice-candidate", ({candidate, type}) => {
-            console.log("add ice candidate from remote");
-            console.log({candidate, type})
-            if (type == "sender") {
-                setReceivingPc(pc => {
-                    if (!pc) {
-                        console.error("receicng pc not found")
-                    } else {
-                        console.error(pc.ontrack)
-                    }
-                    pc?.addIceCandidate(candidate)
-                    return pc;
-                });
-            } else {
-                setSendingPc(pc => {
-                    if (!pc) {
-                        console.error("sending pc not found")
-                    } else {
-                        console.error(pc.ontrack)
-                    }
-                    pc?.addIceCandidate(candidate)
-                    return pc;
-                });
-            }
-        })
-
-        setSocket(socket)
-    }, [localAudioTrack, localVideoTrack, name, remoteMediaStream])
+        return () => {
+            socket.off('start-call');
+            socket.off('offer');
+            socket.off('answer');
+            socket.off('add-ice-candidate');
+            sendingPc?.close();
+            receivingPc?.close();
+        };
+    }, [socket, localAudioTrack, localVideoTrack, remoteMediaStream, receivingPc, sendingPc]);
 
     useEffect(() => {
-        if (localVideoRef.current) {
-            if (localVideoTrack) {
-                localVideoRef.current.srcObject = new MediaStream([localVideoTrack]);
-                localVideoRef.current.play();
-                // const localStream = new MediaStream([localVideoTrack, localAudioTrack]);
-                // localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-            }
+        if (localVideoRef.current && localVideoTrack) {
+            const stream = new MediaStream([localVideoTrack]);
+            localVideoRef.current.srcObject = stream;
+            localVideoRef.current.play().catch(e => console.error("Local video play failed:", e));
         }
-    }, [localVideoRef, localVideoTrack])
+    }, [localVideoTrack]);
+
+    useEffect(() => {
+        if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = remoteMediaStream;
+        }
+
+        const qualityInterval = setInterval(() => {
+            setConnectionQuality(prev => Math.max(60, Math.min(100, prev + Math.random() * 10 - 5)));
+        }, 2000);
+
+        return () => clearInterval(qualityInterval);
+    }, [remoteMediaStream]);
 
     return (
-        <div className="min-h-screen bg-space-dark relative overflow-hidden flex flex-col items-center">
-            {/* Animated background elements */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(139,61,255,0.1),rgba(0,0,0,0))]" />
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-neon-blue to-transparent animate-pulse" />
-            <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-neon-purple to-transparent animate-pulse" />
-
+        <div className="min-h-screen bg-gray-900 relative overflow-hidden flex flex-col">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(0,255,255,0.1),rgba(0,0,0,0))]" />
+            
+            {/* Animated grid background */}
+            <div className="absolute inset-0" style={{
+                background: 'linear-gradient(transparent 0%, transparent calc(100% - 1px), rgba(0, 255, 255, 0.1) 100%), linear-gradient(90deg, transparent 0%, transparent calc(100% - 1px), rgba(0, 255, 255, 0.1) 100%)',
+                backgroundSize: '50px 50px',
+                animation: 'move 15s linear infinite'
+            }} />
+            
             {/* Header */}
-            <div className="w-full px-8 py-6 backdrop-blur-sm bg-space-light/30 border-b border-neon-blue/20">
-                <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">
-                    Neural Link: <span className="text-neon-pink">{name}</span>
-                </h1>
+            <div className="relative w-full px-8 py-4 bg-black/50 border-b border-cyan-500/30 backdrop-blur-md">
+                <div className="flex justify-between items-center">
+                    <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">
+                        NEURAL·LINK/<span className="text-pink-500">{name}</span>
+                    </h1>
+                    <div className="flex items-center space-x-4">
+                        <div className="text-cyan-400">
+                            Signal: {connectionQuality}%
+                            <div className="w-24 h-1 bg-gray-800 rounded-full mt-1">
+                                <div 
+                                    className="h-full bg-cyan-400 rounded-full transition-all duration-500"
+                                    style={{ width: `${connectionQuality}%` }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Main content */}
-            <div className="flex-1 w-full max-w-7xl mx-auto p-8">
-                <div className="grid grid-cols-2 gap-8">
-                    {/* Local video container */}
+            <div className="flex-1 p-8">
+                <div className="grid grid-cols-2 gap-8 max-w-7xl mx-auto">
+                    {/* Local feed */}
                     <div className="relative group">
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-1000" />
-                        <div className="relative">
+                        <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg opacity-75 blur group-hover:opacity-100 transition duration-300" />
+                        <div className="relative bg-black rounded-lg p-1">
                             <video
                                 ref={localVideoRef}
                                 autoPlay
                                 playsInline
                                 muted
-                                className="w-full aspect-video rounded-xl border border-neon-blue/30 shadow-lg"
+                                className="w-full aspect-video rounded-lg border border-cyan-500/20"
                             />
-                            <div className="absolute bottom-4 left-4 px-4 py-2 rounded-lg bg-space-dark/80 border border-neon-blue/30 text-neon-blue">
-                                Local Neural Feed
+                            <div className="absolute top-4 left-4 px-3 py-1 rounded border border-cyan-500/50 bg-black/80 text-cyan-400 text-sm">
+                                LOCAL_FEED:://{name}
                             </div>
                         </div>
                     </div>
 
-                    {/* Remote video container */}
+                    {/* Remote feed */}
                     <div className="relative group">
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-neon-pink via-neon-purple to-neon-blue rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-1000" />
-                        <div className="relative">
+                        <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg opacity-75 blur group-hover:opacity-100 transition duration-300" />
+                        <div className="relative bg-black rounded-lg p-1">
                             <video
                                 ref={remoteVideoRef}
                                 autoPlay
                                 playsInline
-                                className="w-full aspect-video rounded-xl border border-neon-pink/30 shadow-lg"
+                                className="w-full aspect-video rounded-lg border border-pink-500/20"
                             />
-                            <div className="absolute bottom-4 left-4 px-4 py-2 rounded-lg bg-space-dark/80 border border-neon-pink/30 text-neon-pink">
-                                Remote Neural Feed
+                            <div className="absolute top-4 left-4 px-3 py-1 rounded border border-pink-500/50 bg-black/80 text-pink-400 text-sm">
+                                REMOTE_FEED::/*connected*/
                             </div>
                         </div>
                     </div>
@@ -242,14 +185,14 @@ export const Room = ({ name, localAudioTrack, localVideoTrack}: RoomProps) => {
                 {/* Status indicator */}
                 <div className="mt-8 flex justify-center">
                     {lobby ? (
-                        <div className="flex items-center space-x-3 px-6 py-3 rounded-full bg-space-light/50 border border-neon-blue/30">
-                            <div className="w-3 h-3 rounded-full bg-neon-blue animate-pulse" />
-                            <span className="text-neon-blue">Scanning neural network for available connections...</span>
+                        <div className="flex items-center space-x-3 px-6 py-2 rounded-full bg-black/50 border border-cyan-500/30">
+                            <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
+                            <span className="text-cyan-400 text-sm">SCANNING_NETWORK...</span>
                         </div>
                     ) : (
-                        <div className="flex items-center space-x-3 px-6 py-3 rounded-full bg-space-light/50 border border-neon-green/30">
-                            <div className="w-3 h-3 rounded-full bg-neon-green" />
-                            <span className="text-neon-green">Neural link established</span>
+                        <div className="flex items-center space-x-3 px-6 py-2 rounded-full bg-black/50 border border-green-500/30">
+                            <div className="w-2 h-2 rounded-full bg-green-500" />
+                            <span className="text-green-400 text-sm">NEURAL_LINK::ESTABLISHED</span>
                         </div>
                     )}
                 </div>
