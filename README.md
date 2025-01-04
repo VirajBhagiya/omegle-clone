@@ -5,10 +5,6 @@ Welcome to Omegle Clone! 🌐 This project replicates the popular random chat ex
 - Random Matching 🎲: Connect with random users for unique interactions!
 - Real-Time Video Chat 🔴: Instant connections via WebRTC.
 
-## 🛠️ Tech Stack
-- Frontend 🌐: React, WebRTC
-- Backend 🛠️: Node.js, Socket.io
-
 ## 📦 Local Installation
 
 1. Clone the Repo
