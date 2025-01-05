@@ -1,15 +1,21 @@
-import { useState, useRef, useEffect } from 'react';
-import { Socket } from "socket.io-client";
+import React, { useState, useRef, useEffect } from 'react';
+import { Socket } from 'socket.io-client';
 
-interface ChatProps {
-    socket: Socket,
-    roomId: string
+interface ChatMessage {
+    text: string;
+    timestamp: string;
+    isLocal: boolean;
 }
 
-export const Chat = ({ socket, roomId }: ChatProps) => {
-    const [messages, setMessages] = useState([]);
+interface ChatProps {
+    socket: Socket;
+    roomId: string;
+}
+
+export const Chat: React.FC<ChatProps> = ({ socket, roomId }) => {
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [newMessage, setNewMessage] = useState('');
-    const messagesEndRef = useRef(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -22,7 +28,7 @@ export const Chat = ({ socket, roomId }: ChatProps) => {
     useEffect(() => {
         if (!socket) return;
 
-        socket.on('chat-message', (message) => {
+        socket.on('chat-message', (message: ChatMessage) => {
             setMessages(prev => [...prev, message]);
         });
 
@@ -31,11 +37,11 @@ export const Chat = ({ socket, roomId }: ChatProps) => {
         };
     }, [socket]);
 
-    const sendMessage = (e) => {
+    const sendMessage = (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMessage.trim()) return;
 
-        const messageData = {
+        const messageData: ChatMessage = {
             text: newMessage,
             timestamp: new Date().toISOString(),
             isLocal: true
@@ -82,7 +88,7 @@ export const Chat = ({ socket, roomId }: ChatProps) => {
                     <input
                         type="text"
                         value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewMessage(e.target.value)}
                         placeholder="Type your message..."
                         className="flex-1 bg-black/50 border border-cyan-500/30 rounded px-4 py-2 text-cyan-400 placeholder-cyan-400/50 focus:outline-none focus:border-cyan-500"
                     />
