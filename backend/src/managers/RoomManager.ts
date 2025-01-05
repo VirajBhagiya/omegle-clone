@@ -133,6 +133,21 @@ export class RoomManager {
         }
     }
 
+    // In RoomManager.ts
+    onChatMessage(roomId: string, senderSocketId: string, text: string) {
+        const room = this.rooms.get(roomId);
+        if (!room) return;
+
+        const sender = room.user1.socket.id === senderSocketId ? room.user1 : room.user2;
+        const receiver = room.user1.socket.id === senderSocketId ? room.user2 : room.user1;
+
+        receiver.socket.emit('chat-message', {
+            text,
+            timestamp: new Date().toISOString(),
+            isLocal: false
+        });
+    }
+
     private generate() {
         return Date.now() + Math.random().toString(36).substr(2, 9);
     }

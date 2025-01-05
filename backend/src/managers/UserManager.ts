@@ -131,5 +131,9 @@ export class UserManager {
             this.removeUser(socket.id);
             this.addUser(socket.id, socket);
         });
+
+        socket.on("send-message", ({ text, roomId }) => {
+            this.roomManager.onChatMessage(roomId, socket.id, text);
+        });
     }
 } 

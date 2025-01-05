@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Socket } from "socket.io-client";
+import { Chat } from "./Chat";
 
 interface RoomProps {
     name: string;
@@ -16,6 +17,7 @@ export const Room = ({ name, localAudioTrack, localVideoTrack, socket }: RoomPro
     const [, setRemoteAudioTrack] = useState<MediaStreamTrack | null>(null);
     const [remoteMediaStream] = useState<MediaStream>(new MediaStream());
     const [connectionQuality, setConnectionQuality] = useState(100);
+    const [roomId, setRoomId] = useState<string>("");
 
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
     const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -24,6 +26,7 @@ export const Room = ({ name, localAudioTrack, localVideoTrack, socket }: RoomPro
         if (!socket) return;
 
         socket.on('start-call', async ({ roomId, isInitiator }) => {
+            setRoomId(roomId);
             setLobby(false);
             if (isInitiator) {
                 const pc = new RTCPeerConnection();
@@ -181,6 +184,11 @@ export const Room = ({ name, localAudioTrack, localVideoTrack, socket }: RoomPro
                         </div>
                     </div>
                 </div>
+
+                {/* Chat section */}
+                <div className="col-span-1">
+                        {!lobby && <Chat socket={socket} roomId={roomId} />}
+                    </div>
 
                 {/* Status indicator */}
                 <div className="mt-8 flex justify-center">
