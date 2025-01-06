@@ -91,7 +91,7 @@ export const Landing = () => {
                                 boxShadow: '0 0 20px rgba(0, 243, 255, 0.2)',
                             }}
                         />
-                        <div className="absolute inset-0 rounded-xl bg-gradient-to-t from-space-dark/80 via-transparent to-transparent" />
+                        <div className="absolute rounded-xl bg-gradient-to-t from-space-dark/80 via-transparent to-transparent" />
                     </div>
 
                     <div className="space-y-6">
@@ -115,7 +115,7 @@ export const Landing = () => {
                                 w-full px-8 py-4 rounded-lg font-bold text-lg
                                 transition-all duration-300 transform hover:scale-105
                                 ${name.trim() 
-                                    ? 'bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink text-white shadow-lg hover:shadow-neon-purple/50' 
+                                    ? 'bg-gradient-to-r from-cyan-500 from-60% to-blue-500 to-90% text-white shadow-lg hover:shadow-neon-purple/50' 
                                     : 'bg-space-accent text-gray-500 cursor-not-allowed'}
                             `}
                         >
@@ -126,7 +126,5 @@ export const Landing = () => {
             </div>
         );
     }
-
     return <Room name={name} localAudioTrack={localAudioTrack} localVideoTrack={localVideoTrack} socket={socket} />;
-
 };

@@ -1,7 +1,5 @@
 import { User } from "./UserManager";
 
-let GLOBAL_ROOM_ID = 1;
-
 interface Room{
     user1: User,
     user2: User
@@ -59,13 +57,15 @@ export class RoomManager {
         user1.socket.emit("start-call", {
             roomId,
             iceServers,
-            isInitiator: true
+            isInitiator: true,
+            remotePeerName: user2.name
         });
 
         user2.socket.emit("start-call", {
             roomId,
             iceServers,
-            isInitiator: false
+            isInitiator: false,
+            remotePeerName: user1.name
         });
 
         return roomId;
@@ -79,7 +79,7 @@ export class RoomManager {
         }
 
         const receivingUser = room.user1.socket.id === senderSocketId ? room.user2 : room.user1;
-        console.log(`Forwarding offer from ${senderSocketId} to ${receivingUser.socket.id}`);
+        // console.log(`Forwarding offer from ${senderSocketId} to ${receivingUser.socket.id}`);
 
         receivingUser?.socket.emit("offer", {
             sdp,
@@ -96,7 +96,7 @@ export class RoomManager {
 
         room.status = 'connected';
         const receivingUser = room.user1.socket.id === senderSocketId ? room.user2 : room.user1;
-        console.log(`Forwarding answer from ${senderSocketId} to ${receivingUser.socket.id}`);
+        // console.log(`Forwarding answer from ${senderSocketId} to ${receivingUser.socket.id}`);
 
         receivingUser?.socket.emit("answer", {
             sdp,
@@ -112,7 +112,7 @@ export class RoomManager {
         }
 
         const receivingUser = room.user1.socket.id === senderSocketId ? room.user2 : room.user1;
-        console.log(`Forwarding ICE candidate from ${senderSocketId} to ${receivingUser.socket.id}`);
+        // console.log(`Forwarding ICE candidate from ${senderSocketId} to ${receivingUser.socket.id}`);
 
         receivingUser.socket.emit("add-ice-candidate", {
             candidate, 
@@ -151,8 +151,4 @@ export class RoomManager {
     private generate() {
         return Date.now() + Math.random().toString(36).substr(2, 9);
     }
-    
-    // generate(){
-    //     return GLOBAL_ROOM_ID++;
-    // }
 }

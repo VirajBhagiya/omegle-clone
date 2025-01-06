@@ -88,42 +88,22 @@ export class UserManager {
                 user2: user2.socket.id
             });
             this.roomManager.createRoom(user1, user2);
-            
         }
-
-        // if(this.queue.length < 3){
-        //     return;
-        // }
-
-        // const id1 = this.queue.pop();
-        // const id2 = this.queue.pop();
-        // const id3 = this.queue.pop();
-
-        // console.log("Id is " + id1 + " " + id3);
-        // const user1 = this.users.find(x => x.socket.id === id1);
-        // const user2 = this.users.find(x => x.socket.id === id3);
-
-        // if(!user1 || !user2){
-        //     return;
-        // }
-
-        // const room =  this.roomManager.createRoom(user1, user2)
-        // this.clearQueue();
     }
 
     private initHandlers(socket: Socket){
         socket.on("offer", ({sdp, roomId}: {sdp:RTCSessionDescriptionInit, roomId: string}) => {
-            console.log(`Offer received from ${socket.id} for room ${roomId}`);
+            // console.log(`Offer received from ${socket.id} for room ${roomId}`);
             this.roomManager.onOffer(roomId, sdp, socket.id);
         })
 
         socket.on("answer", ({sdp, roomId}:  {sdp:RTCSessionDescriptionInit, roomId: string}) => {
-            console.log(`Answer received from ${socket.id} for room ${roomId}`);
+            // console.log(`Answer received from ${socket.id} for room ${roomId}`);
             this.roomManager.onAnswer(roomId, sdp, socket.id);
         })
 
         socket.on("add-ice-candidate", ({candidate, roomId, type}) => {
-            console.log(`ICE candidate received from ${socket.id} for room ${roomId}`);
+            // console.log(`ICE candidate received from ${socket.id} for room ${roomId}`);
             this.roomManager.onIceCandidates(roomId, socket.id, candidate, type);
         });
 

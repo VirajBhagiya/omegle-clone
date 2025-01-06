@@ -18,6 +18,7 @@ export const Room = ({ name, localAudioTrack, localVideoTrack, socket }: RoomPro
     const [remoteMediaStream] = useState<MediaStream>(new MediaStream());
     const [connectionQuality, setConnectionQuality] = useState(100);
     const [roomId, setRoomId] = useState<string>("");
+    const [remoteName, setRemoteName] = useState<string>("");
 
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
     const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -45,11 +46,13 @@ export const Room = ({ name, localAudioTrack, localVideoTrack, socket }: RoomPro
     
             return pc;
         };
+
         if (!socket) return;
 
-        socket.on('start-call', async ({ roomId, isInitiator, iceServers }) => {
+        socket.on('start-call', async ({ roomId, isInitiator, iceServers, remotePeerName }) => {
             setRoomId(roomId);
             setLobby(false);
+            setRemoteName(remotePeerName)
 
             const pc = new RTCPeerConnection(iceServers);
             setupPeerConnection(pc);
@@ -117,7 +120,7 @@ export const Room = ({ name, localAudioTrack, localVideoTrack, socket }: RoomPro
             sendingPc?.close();
             receivingPc?.close();
         };
-    }, [receivingPc, sendingPc, socket, localVideoTrack, localAudioTrack, remoteMediaStream]);
+    }, [receivingPc, sendingPc, socket, localVideoTrack, localAudioTrack, remoteMediaStream, remoteName]);
 
     useEffect(() => {
         if (localVideoRef.current && localVideoTrack) {
@@ -158,7 +161,7 @@ export const Room = ({ name, localAudioTrack, localVideoTrack, socket }: RoomPro
                     </h1>
                     <div className="flex items-center space-x-4">
                         <div className="text-cyan-400">
-                            Signal: {connectionQuality}%
+                            Signal: {connectionQuality.toFixed(2)}%
                             <div className="w-24 h-1 bg-gray-800 rounded-full mt-1">
                                 <div 
                                     className="h-full bg-cyan-400 rounded-full transition-all duration-500"
@@ -185,7 +188,7 @@ export const Room = ({ name, localAudioTrack, localVideoTrack, socket }: RoomPro
                                 className="w-full aspect-video rounded-lg border border-cyan-500/20"
                             />
                             <div className="absolute top-4 left-4 px-3 py-1 rounded border border-cyan-500/50 bg-black/80 text-cyan-400 text-sm">
-                                LOCAL_FEED:://{name}
+                                LOCAL_FEED :: {name}
                             </div>
                         </div>
                     </div>
@@ -201,14 +204,14 @@ export const Room = ({ name, localAudioTrack, localVideoTrack, socket }: RoomPro
                                 className="w-full aspect-video rounded-lg border border-pink-500/20"
                             />
                             <div className="absolute top-4 left-4 px-3 py-1 rounded border border-pink-500/50 bg-black/80 text-pink-400 text-sm">
-                                REMOTE_FEED::/*connected*/
+                                REMOTE_FEED :: {remoteName || "connecting..."}
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Chat section */}
-                <div className="col-span-1">
+                <div className="mt-8 col-span-1 space-y-2">
                         {!lobby && <Chat socket={socket} roomId={roomId} />}
                     </div>
 
@@ -222,7 +225,7 @@ export const Room = ({ name, localAudioTrack, localVideoTrack, socket }: RoomPro
                     ) : (
                         <div className="flex items-center space-x-3 px-6 py-2 rounded-full bg-black/50 border border-green-500/30">
                             <div className="w-2 h-2 rounded-full bg-green-500" />
-                            <span className="text-green-400 text-sm">NEURAL_LINK::ESTABLISHED</span>
+                            <span className="text-green-400 text-sm">NEURAL_LINK :: ESTABLISHED</span>
                         </div>
                     )}
                 </div>
