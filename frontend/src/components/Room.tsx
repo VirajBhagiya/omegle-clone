@@ -22,18 +22,40 @@ export const Room = ({ name, localAudioTrack, localVideoTrack, socket }: RoomPro
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
     const localVideoRef = useRef<HTMLVideoElement>(null);
 
+    
     useEffect(() => {
+        const setupPeerConnection = (pc: RTCPeerConnection) => {
+            if (localVideoTrack) pc.addTrack(localVideoTrack);
+            if (localAudioTrack) pc.addTrack(localAudioTrack);
+    
+            pc.ontrack = (event) => {
+                const track = event.track;
+                if (track.kind === "video") {
+                    remoteMediaStream.addTrack(track);
+                    setRemoteVideoTrack(track);
+                } else {
+                    remoteMediaStream.addTrack(track);
+                    setRemoteAudioTrack(track);
+                }
+    
+                if (remoteVideoRef.current) {
+                    remoteVideoRef.current.srcObject = remoteMediaStream;
+                }
+            };
+    
+            return pc;
+        };
         if (!socket) return;
 
-        socket.on('start-call', async ({ roomId, isInitiator }) => {
+        socket.on('start-call', async ({ roomId, isInitiator, iceServers }) => {
             setRoomId(roomId);
             setLobby(false);
-            if (isInitiator) {
-                const pc = new RTCPeerConnection();
-                setSendingPc(pc);
 
-                if (localVideoTrack) pc.addTrack(localVideoTrack);
-                if (localAudioTrack) pc.addTrack(localAudioTrack);
+            const pc = new RTCPeerConnection(iceServers);
+            setupPeerConnection(pc);
+
+            if (isInitiator) {
+                setSendingPc(pc);
 
                 pc.onicecandidate = ({ candidate }) => {
                     if (candidate) {
@@ -48,24 +70,18 @@ export const Room = ({ name, localAudioTrack, localVideoTrack, socket }: RoomPro
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
                 socket.emit("offer", { sdp: offer, roomId });
+            } else {
+                setReceivingPc(pc);
             }
         });
 
         socket.on("offer", async ({ roomId, sdp }) => {
-            const pc = new RTCPeerConnection();
-            setReceivingPc(pc);
+            const pc = receivingPc || new RTCPeerConnection();
+            if (!receivingPc) {
+                setupPeerConnection(pc);
+                setReceivingPc(pc);
+            }
             
-            pc.ontrack = (event) => {
-                const [track] = event.streams[0].getTracks();
-                if (track.kind === "video") {
-                    remoteMediaStream.addTrack(track);
-                    setRemoteVideoTrack(track);
-                } else {
-                    remoteMediaStream.addTrack(track);
-                    setRemoteAudioTrack(track);
-                }
-            };
-
             pc.onicecandidate = ({ candidate }) => {
                 if (candidate) {
                     socket.emit("add-ice-candidate", {
@@ -82,6 +98,12 @@ export const Room = ({ name, localAudioTrack, localVideoTrack, socket }: RoomPro
             socket.emit("answer", { sdp: answer, roomId });
         });
 
+        socket.on("answer", async ({ sdp }) => {
+            if (sendingPc) {
+                await sendingPc.setRemoteDescription(sdp);
+            }
+        });
+
         socket.on("add-ice-candidate", async ({ candidate, type }) => {
             const pc = type === "sender" ? receivingPc : sendingPc;
             if (pc) await pc.addIceCandidate(candidate);
@@ -95,7 +117,7 @@ export const Room = ({ name, localAudioTrack, localVideoTrack, socket }: RoomPro
             sendingPc?.close();
             receivingPc?.close();
         };
-    }, [socket, localAudioTrack, localVideoTrack, remoteMediaStream, receivingPc, sendingPc]);
+    }, [receivingPc, sendingPc, socket, localVideoTrack, localAudioTrack, remoteMediaStream]);
 
     useEffect(() => {
         if (localVideoRef.current && localVideoTrack) {
