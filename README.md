@@ -23,6 +23,7 @@ npm install
 - Start backend server:
 ```bash
 cd backend
+npx tsc -b
 npm start
 ```
 
