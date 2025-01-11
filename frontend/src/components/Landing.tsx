@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { io } from "socket.io-client";
 import { Room } from "./Room";
 
-const socket = io("http://localhost:3000", {
+const socket = io("http://172.23.208.1:5173", {
     reconnection: false,  // Prevent automatic reconnection
     transports: ['websocket']  // Use WebSocket transport only
 });
